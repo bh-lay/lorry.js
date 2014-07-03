@@ -1,6 +1,7 @@
 (function(global,document,factoryFn){
 	var factory = factoryFn(global,document);
-	global.L = global.L = factory;
+	global.L = global.L = factory.init;
+	global.L.fns = global.L.fns || factory.fns;
 	
 })(window,document,function(){
 	/**
@@ -181,19 +182,19 @@
 	construction.prototype['find'] = function(){
 		return new construction(find(this,arguments[0]));
 	};
-	construction.prototype['hide'] = function(){
-		
-	};
-	return function(){
-		if(typeof(arguments[0]) == 'string'){
-			return new construction(find([document],arguments[0]));
-		}else{
-			var type = Object.prototype.toString.call(arguments[0]);
-			if(type == '[object HTMLDivElement]'){
-				return new construction([arguments[0]]);
-			}else if(type == '[object NodeList]'){
-				return new construction(arguments[0]);
+	return {
+		'init' : function(){
+			if(typeof(arguments[0]) == 'string'){
+				return new construction(find([document],arguments[0]));
+			}else{
+				var type = Object.prototype.toString.call(arguments[0]);
+				if(type == '[object HTMLDivElement]'){
+					return new construction([arguments[0]]);
+				}else if(type == '[object NodeList]'){
+					return new construction(arguments[0]);
+				}
 			}
-		}
+		},
+		'fns' : construction.prototype
 	};
 });
