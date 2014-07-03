@@ -1,9 +1,10 @@
-(function(global,document,factoryFn){
-	var factory = factoryFn(global,document);
-	global.L = global.L = factory.init;
-	global.L.fns = global.L.fns || factory.fns;
+(function(global,document,factoryFn,plugIns){
+	//初始化factory
+	global.L = global.L || factoryFn(global,document);
 	
-})(window,document,function(){
+	//扩展原型链
+	plugIns(L,global.L.fns);
+})(window,document,function(window,document){
 	/**
  	 * 遍历数组
 	 * 
@@ -11,12 +12,15 @@
 	function each(arr,fn){
 		//检测输入的值
 		if(typeof(arr) == 'object' && typeof(fn) == 'function'){
-			if(typeof(arr.length) != undefined){
+			if(arr.length && (arr.length == +arr.length)){
 				for(var i=0,total=arr.length;i<total;i++){
 					fn.call(this,i,arr[i]);
 				}
 			}else{
 				for(var i in arr){
+					if (!arr.hasOwnProperty(i)){
+						continue;
+					}
 					fn.call(this,i,arr[i]);
 				}
 			}
@@ -143,7 +147,7 @@
 		
 		//遍历输入dom
 		each(root,function(i,thisDom){
-			//从当前dom查找子对象\
+			//从当前dom查找子对象
 			var this_result = findDom(thisDom,last_css_rule);
 			
 			if(this_result.length){
@@ -182,19 +186,145 @@
 	construction.prototype['find'] = function(){
 		return new construction(find(this,arguments[0]));
 	};
-	return {
-		'init' : function(){
-			if(typeof(arguments[0]) == 'string'){
-				return new construction(find([document],arguments[0]));
-			}else{
-				var type = Object.prototype.toString.call(arguments[0]);
-				if(type == '[object HTMLDivElement]'){
-					return new construction([arguments[0]]);
-				}else if(type == '[object NodeList]'){
-					return new construction(arguments[0]);
-				}
-			}
-		},
-		'fns' : construction.prototype
+	construction.prototype['each'] = function (fn){
+		for(var i=0,total=this.length;i<total;i++){
+			fn.call(this[i],i);
+		}
 	};
+	construction.prototype['eq'] = function (num){
+		if( num == +num ){
+			var doms = this[num] ? [this[num]] : [];
+			return new construction(doms);
+		}
+		return this;
+	};
+	
+	var query = function(){
+		if(typeof(arguments[0]) == 'string'){
+			return new construction(find([document],arguments[0]));
+		}else{
+			var type = Object.prototype.toString.call(arguments[0]);
+			if(type == '[object HTMLDivElement]'){
+				return new construction([arguments[0]]);
+			}else if(type == '[object NodeList]'){
+				return new construction(arguments[0]);
+			}
+		}
+	};
+	query.fns = construction.prototype;
+	query.each = each;
+	return query;
+},function(L,fns){
+	//获取样式
+	function getStyle(elem, prop) {
+		var value;
+		prop == "borderWidth" ? prop = "borderLeftWidth" : prop;
+		if (elem.style[prop]){
+			value = elem.style[prop];
+		} else if(document.defaultView) {
+			var style = document.defaultView.getComputedStyle(elem, null);
+			value = prop in style ? style[prop] : style.getPropertyValue(prop);
+		} else if (elem.currentStyle) {
+			value = elem.currentStyle[prop];
+		}
+		
+		if (/\px$/.test(value)){
+			value = parseInt(value);
+		} else if( value == +value){
+			value = parseInt(value*10000)/10000;;
+		} else if(value == '' || value == 'medium'){
+			value = 0;
+		} else if (value == 'auto'){
+			if(prop == 'height'){
+				value = elem.clientHeight;
+			}
+		}
+		return value;
+	}
+
+	/**
+	 * dom设置样式
+	 */
+	function setStyle(elem,prop,value){
+	
+		if(!value && (value != +value)){
+			console.log(prop,'-',value,'-','error');
+			return
+		}
+		prop = prop.toString();
+		if (prop == "opacity") {
+			elem.style['filter'] = 'alpha(opacity=' + (value * 100)+ ')';
+			value = value;
+		} else if (value == +value){
+			value = value + "px";
+		}
+		elem.style[prop] = value;
+	}
+	
+	//隐藏
+	fns.hide = function(){
+		this.each(function(i){
+			this.style['display'] = "none";
+		});
+		return this;
+	};
+	//显示
+	fns.show = function(){
+		this.each(function(i){
+			this.style['display'] = "block";
+		});
+		return this;
+	};
+	/**
+	 * outerWidth
+	 * outerHeight
+	 */
+	var testDom = document.createElement('div');
+	//用生命在计算宽度
+	function count_outerWidth (elem){
+		return (getStyle(elem,'borderLeftWidth') + getStyle(elem,'paddingLeft') + getStyle(elem,'width') + getStyle(elem,'paddingRight') + getStyle(elem,'borderRightWidth'));
+	}
+	//用生命在计算高度
+	function count_outerHeight (elem){
+		return (getStyle(elem,'borderTopWidth') + getStyle(elem,'paddingTop') + getStyle(elem,'height') + getStyle(elem,'paddingBottom') + getStyle(elem,'borderBottomWidth'));
+	}
+	if(testDom.getBoundingClientRect !== 'undefined'){
+		fns.outerWidth = function(){
+			var output = this[0].getBoundingClientRect()['width'] || 0;
+			if(typeof(output) == 'undefined'){
+				output = count_outerWidth(this[0]);
+			}
+			return output;
+		};
+		fns.outerHeight = function(elem){
+			var output = elem.getBoundingClientRect()['height'] || 0;
+			if(typeof(output) == 'undefined'){
+				output = count_outerHeight(elem);
+			}
+			return output;
+		};
+	}else{
+		fns.outerWidth = function(){
+			return count_outerWidth(this[0]);
+		};
+		fns.outerHeight = function(){
+			return count_outerHeight(this[0]);
+		};
+	}
+	
+	//获取、设置css
+	fns.css = function setCss(input){
+		if(typeof(input) == 'string'){
+			return this[0] ? getStyle(this[0],input) : null;
+		}else if( typeof(input == 'object') ){
+			this.each(function(){
+				L.each.call(this,input,function(pro){
+					console.log(2,this);
+					setStyle(this,pro,input[pro]);
+				});
+			});
+		}
+		return this;
+	};
+	
 });
