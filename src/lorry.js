@@ -319,7 +319,6 @@
 		}else if( typeof(input == 'object') ){
 			this.each(function(){
 				L.each.call(this,input,function(pro){
-					console.log(2,this);
 					setStyle(this,pro,input[pro]);
 				});
 			});
