@@ -31,7 +31,10 @@
 	 */
 	function hasClass(dom,classSingle){
 		//dom有class 检测，无class，直接返回false
-		return (dom.className && dom.className.length) ? dom.className.match(new RegExp('(\\s|^)' + classSingle +'(\\s|$)')) : false;
+		if(dom.className && dom.className.length){
+			return dom.className.match(new RegExp('(\\s|^)' + classSingle +'(\\s|$)')) ? true : false;
+		}
+		return false;
 	}
 	/**
 	 * 判断dom的tagName
@@ -197,6 +200,9 @@
 			return new construction(doms);
 		}
 		return this;
+	};
+	construction.prototype['hasClass'] = function (className){
+		return hasClass(this[0],className);
 	};
 	
 	var query = function(){
