@@ -168,32 +168,27 @@
 		return returns;
 	}
 	
-	
-	/**
-	 * 设置实例化对象为数组
-	 */
-	function objectToArray(elems) {  
-        //初始化长度，因为push会在原始的length++
-		this.length = 0;
-        Array.prototype.push.apply(this, elems);  
-        return this;  
-    }
 	/**
 	 * 构造函数
 	 */
-	function construction(obj){
-		objectToArray.call(this,obj);
+	function construction(elems){
+		//构建伪数组
+		this.length = 0;
+        Array.prototype.push.apply(this, elems); 
 	}
-	//实例化后的对象初始为数组
-	construction.prototype = new Array();
+	//构建伪数组
+	construction.prototype = [];
+	//查找
 	construction.prototype['find'] = function(){
 		return new construction(find(this,arguments[0]));
 	};
+	//遍历
 	construction.prototype['each'] = function (fn){
 		for(var i=0,total=this.length;i<total;i++){
 			fn.call(this[i],i);
 		}
 	};
+	//选择索引
 	construction.prototype['eq'] = function (num){
 		if( num == +num ){
 			var doms = this[num] ? [this[num]] : [];
@@ -201,6 +196,7 @@
 		}
 		return this;
 	};
+	//检查class
 	construction.prototype['hasClass'] = function (className){
 		return hasClass(this[0],className);
 	};
@@ -221,6 +217,16 @@
 	query.each = each;
 	return query;
 },function(L,fns){
+	/**
+	 * 判断对象类型
+	 * String Number Array
+	 * Object Function 
+	 * HTMLDocument
+	 * Undefined Null 
+	 */
+	function TypeOf(obj) {
+		return Object.prototype.toString.call(obj).match(/\s(\w+)/)[1];
+	}
 	//获取样式
 	function getStyle(elem, prop) {
 		var value;
@@ -331,5 +337,155 @@
 		}
 		return this;
 	};
+	/**
+	 * 动画
+	 *
+	 */
+     var Tween = {
+		Linear: function (t, b, c, d) { return c * t / d + b; },
+		QuadEaseIn: function (t, b, c, d) {
+			return c * (t /= d) * t + b;
+		},
+		SineEaseIn: function (t, b, c, d) {
+			return -c * Math.cos(t / d * (Math.PI / 2)) + c + b;
+		},
+		SineEaseOut: function (t, b, c, d) {
+			return c * Math.sin(t / d * (Math.PI / 2)) + b;
+		},
+		ElasticEaseOut: function (t, b, c, d, a, p) {
+			if (t == 0) return b; if ((t /= d) == 1) return b + c; if (!p) p = d * .3;
+			if (!a || a < Math.abs(c)) { a = c; var s = p / 4; }
+			else var s = p / (2 * Math.PI) * Math.asin(c / a);
+			return (a * Math.pow(2, -10 * t) * Math.sin((t * d - s) * (2 * Math.PI) / p) + c + b);
+		},
+		BackEaseOut: function (t, b, c, d, s) {
+			if (s == undefined) s = 1.70158;
+			return c * ((t = t / d - 1) * t * ((s + 1) * t + s) + 1) + b;
+		}
+    }
 	
+	/**
+	 * 获取动画所需的参数，只获取为数字的参数
+	 *
+	 * 属性名
+	 * 初始值
+	 * 目标值
+	 */
+	function parseCSS_forAnim (elem, cssObj) {
+		var props = [];
+		var cssOri = [];
+		var cssEnd = [];
+		for (var prop in cssObj) {
+			if (!cssObj.hasOwnProperty(prop)){
+				continue;
+			}
+			
+			var value = getStyle(elem, prop);
+			//格式化css属性值
+			if (/\px$/.test(value)){
+				value = parseInt(value);
+			}
+			
+			if(value !== '' && (value == +value)){
+				value = parseInt(value*10000)/10000;
+				props.push(prop);
+				cssOri.push(value);
+				cssEnd.push(cssObj[prop]);
+			}
+			
+		}
+		return [props,cssOri,cssEnd];
+	}
+	
+	var requestAnimationFrame = (function () {
+        return  window.requestAnimationFrame ||
+				window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame ||
+				window.oRequestAnimationFrame ||
+				function (callback) {
+					return window.setTimeout(callback, 10);
+				};
+    })();
+	
+	/**
+	 * 动画类
+	 *
+	 */
+    function anim(elem,cssObj,durtime) {
+		var args = arguments;
+        this.elem = elem;
+		
+		var cssParse = parseCSS_forAnim(this.elem, cssObj);
+		
+		//需要修改的属性Array
+		this.props = cssParse[0];
+		//属性初始值Array
+		this.cssOri = cssParse[1];
+		//属性目标值Array
+		this.cssEnd = cssParse[2];
+		this.durtime = durtime;
+		this.animType = "Linear";
+		this.onEnd = null;
+		if (args.length < 3) {
+			throw new Error("missing arguments [dom,cssObj,durtime]");
+		} else {
+			if (TypeOf(args[3]) == "Function") {
+				this.onEnd = args[3];
+			}else if (typeof (args[3]) == "string") {
+				this.animType = args[3];
+			}
+			
+			if (TypeOf(args[4]) == "Function") {
+				this.onEnd = args[4];
+			}
+		}
+		this.startAnim();
+    }
+    anim.prototype['startAnim'] = function () {
+		var me = this;
+		//全部时间 | 开始时间
+		var time_all = this.durtime;
+		var time_start = new Date();
+		
+		//运动曲线方程
+		var aniFunction = Tween[me.animType];
+		
+		//是否已结束动画
+		var is_end = false;
+		
+		//需要修改的css条数
+		var css_length = this.props.length;
+		
+		//显示当前帧（递归）
+		function showFrame(){
+			var time_use = new Date() - time_start;
+			
+			if (time_use < time_all) {
+				requestAnimationFrame(showFrame);
+			}else{
+				time_use = time_all;
+				is_end = true;
+			}
+			var start,end,value;
+			for (var i = 0; i < css_length; i++) {
+				//计算当前帧需要的属性值
+				start = me.cssOri[i] * 10000;
+				end = me.cssEnd[i] * 10000;
+				value = aniFunction(time_use, start, (end-start), time_all)/10000;
+				setStyle(me.elem,me.props[i],value);
+			}
+			
+			if(is_end){
+				me.onEnd && me.onEnd.call(me, me.elem);
+			}
+		}
+		//开始动画
+		requestAnimationFrame(showFrame);
+	};
+	
+	fns.animation = function(cssEnd,durtime,a,b){
+		this.each(function(){
+			new anim(this,cssEnd,durtime,a,b);
+		});
+	};
 });
