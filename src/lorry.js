@@ -12,8 +12,9 @@
 	function each(arr,fn){
 		//ºÏ≤‚ ‰»Îµƒ÷µ
 		if(typeof(arr) == 'object' && typeof(fn) == 'function'){
-			if(arr.length && (arr.length == +arr.length)){
-				for(var i=0,total=arr.length;i<total;i++){
+			var Length = arr.length;
+			if(Length && Length == +Length){
+				for(var i=0;i<Length;i++){
 					fn.call(this,i,arr[i]);
 				}
 			}else{
