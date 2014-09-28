@@ -17,8 +17,6 @@ var createAjax = function() {
 
 var ajax = function(conf) {
     // 初始化
-    //type参数,可选
-    var type = conf.type;
     //url参数，必填 
     var url = conf.url;
     //data参数可选，只有在post请求时需要
@@ -28,10 +26,8 @@ var ajax = function(conf) {
     //回调函数可选
     var success = conf.success;
                                                                                          
-    if (type == null){
-        //type参数可选，默认为get
-        type = "get";
-    }
+    //type参数可选，默认为get
+    var type = conf.type ? conf.type.toLowerCase() : "get";
     if (dataType == null){
         //dataType参数可选，默认为text
         dataType = "text";
@@ -41,11 +37,10 @@ var ajax = function(conf) {
     // 打开
     xhr.open(type, url, true);
     // 发送
-    if (type == "GET" || type == "get") {
+    if (type == 'get') {
         xhr.send(null);
-    } else if (type == "POST" || type == "post") {
-        xhr.setRequestHeader("content-type",
-                    "application/x-www-form-urlencoded");
+    } else if (type == "post") {
+        xhr.setRequestHeader("content-type", "application/x-www-form-urlencoded");
         xhr.send(data);
     }
     xhr.onreadystatechange = function() {
